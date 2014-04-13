@@ -4,8 +4,8 @@
  */
 package cuelibstringreplacer;
 
-import cuelibtools.FileSeeker.CueSheetFileSeeker;
 import cuelibstringreplacer.Replacer.Replacer;
+import cuelibtools.FileSeeker.CueSheetFileSeeker;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,11 +20,12 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.supercsv.io.CsvBeanReader;
 import org.supercsv.io.ICsvBeanReader;
 import org.supercsv.prefs.CsvPreference;
+import util.Util;
 
 /**
  *
@@ -38,7 +39,7 @@ public class CuelibStringReplacer {
      */
     public static void main(String[] args) {
 
-        Log log = LogFactory.getLog(CuelibStringReplacer.class);
+        Logger log = Util.getCallerLogger();
 
         //finallyブロックからリソースを開放できるようにtryブロックの外で変数を宣言
         BufferedReader rc = null;
@@ -47,15 +48,14 @@ public class CuelibStringReplacer {
         try {
 
             //ファイルリストの作成
-
-            log.info("探査ディレクトリ          " + args[0]);
+            log.log(Level.INFO, "探査ディレクトリ={0}", args[0]);
             File Source = new File(args[0]);
 
             if (Source.isDirectory()) {
                 CueSheetFileSeeker seeker = new CueSheetFileSeeker(Source);
                 log.info("検索対象を発見しました。");
 
-                log.info("サブディレクトリ探査  " + args[1]);
+                log.log(Level.INFO, "サブディレクトリ探査={0}", args[1]);
                 boolean recursive = false;
                 switch (args[1]) {
                     case "0":
@@ -79,15 +79,14 @@ public class CuelibStringReplacer {
 
                 log.info("探査開始。");
                 List<File> res = seeker.seek();
-                log.info("探査完了。件数= " + res.size());
+                log.log(Level.INFO, "探査完了。件数 = {0}", res.size());
 
-
-                log.info("置き換え設定ファイル " + args[3]);
+                log.log(Level.INFO, "置き換え設定ファイル = {0}", args[3]);
                 File config = new File(args[3]);
                 rc = new BufferedReader(new InputStreamReader(new FileInputStream(config), args[2]));
                 inFile = new CsvBeanReader(rc, CsvPreference.EXCEL_PREFERENCE);
                 final String[] header = inFile.getHeader(true);
-                csvBean csvB = null;
+                csvBean csvB;
                 ConcurrentHashMap<String, String> confmap = new ConcurrentHashMap<>();
                 while ((csvB = inFile.read(csvBean.class, header, csvBean.processors)) != null) {
                     confmap.put(csvB.getFrom(), csvB.getTo());
@@ -99,10 +98,11 @@ public class CuelibStringReplacer {
                 while (itf.hasNext()) {
                     //対象ファイル
                     File target = itf.next();
+                    log.log(Level.INFO, "置き換え対象ファイル = {0}", target);
 
                     //出力先ファイルの作成
                     SimpleDateFormat DF = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-                    String outfile = target.getAbsolutePath() + "_REP_" + DF.format(new Date()+".cue");
+                    String outfile = target.getAbsolutePath() + "_REP_" + DF.format(new Date() + ".cue");
                     File dest = new File(outfile);
 
                     Replacer rpr = new Replacer(target, dest, args[2], confmap);
@@ -110,7 +110,7 @@ public class CuelibStringReplacer {
                     list_Replacer.add(rpr);
                 }
 
-                log.info("置き換え処理件数 " + list_Replacer.size());
+                log.log(Level.INFO, "置き換え処理件数 = {0}", list_Replacer.size());
 
                 List<Thread> list_Thread = Collections.synchronizedList(new ArrayList<Thread>());
 
@@ -125,13 +125,13 @@ public class CuelibStringReplacer {
             }
 
         } catch (FileNotFoundException e) {
-            log.fatal("ファイルが見つかりません。", e);
+            log.log(Level.SEVERE, "ファイルが見つかりません。", e);
         } catch (UnsupportedEncodingException e) {
-            log.fatal("文字コードの指定に問題があります。", e);
+            log.log(Level.SEVERE, "文字コードの指定に問題があります。", e);
         } catch (IOException e) {
-            log.fatal("入出力エラーです。", e);
+            log.log(Level.SEVERE, "入出力エラーです。", e);
         } catch (Exception e) {
-            log.fatal("エラーです。", e);
+            log.log(Level.SEVERE, "エラーです。", e);
         } finally {
             //例外発生時にも確実にリソースが開放されるように
             //close()の呼び出しはfinallyブロックで行う。
@@ -141,8 +141,8 @@ public class CuelibStringReplacer {
                     inFile.close();
                 }
 
-            } catch (Exception e) {
-                log.fatal("エラーです。", e);
+            } catch (IOException e) {
+                log.log(Level.SEVERE, "エラーです。", e);
             }
         }
     }
