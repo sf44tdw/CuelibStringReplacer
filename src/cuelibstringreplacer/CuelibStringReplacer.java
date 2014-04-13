@@ -28,23 +28,24 @@ import org.supercsv.prefs.CsvPreference;
 import util.Util;
 
 /**
+ * CueSheetを探索し、<>～を問題の出にくい文字に置き換える。
  *
  * @author uname
  */
 public class CuelibStringReplacer {
 
     /**
-     * @param args 1:捜索対象のディレクトリ 2:サブディレクトリ探査の有無。1なら探査する。 3:読み込みの際に前提とする文字コード
-     * 4:置き換えパターン設定ファイルの場所。
+     * @param args 1:捜索対象のディレクトリ 2:サブディレクトリ探査の有無。1なら探査する。3:置き換えパターン設定ファイルの場所。 4:読み込みの際に前提とする文字コード
+     * 
      */
     public static void main(String[] args) {
 
         Logger log = Util.getCallerLogger();
 
         //finallyブロックからリソースを開放できるようにtryブロックの外で変数を宣言
-        BufferedReader rc = null;
+        BufferedReader rc;
         ICsvBeanReader inFile = null;
-
+        String charset = "JISAutoDetect";
         try {
 
             //ファイルリストの作成
@@ -81,9 +82,16 @@ public class CuelibStringReplacer {
                 List<File> res = seeker.seek();
                 log.log(Level.INFO, "探査完了。件数 = {0}", res.size());
 
-                log.log(Level.INFO, "置き換え設定ファイル = {0}", args[3]);
-                File config = new File(args[3]);
-                rc = new BufferedReader(new InputStreamReader(new FileInputStream(config), args[2]));
+                log.log(Level.INFO, "置き換え設定ファイル = {0}", args[2]);
+                File config = new File(args[2]);
+
+                //文字コードの設定
+                if (!(charset.length() == 0)) {
+                    charset = args[3];
+                    log.log(Level.INFO, "文字コード = {0}", charset);
+                }
+
+                rc = new BufferedReader(new InputStreamReader(new FileInputStream(config), charset));
                 inFile = new CsvBeanReader(rc, CsvPreference.EXCEL_PREFERENCE);
                 final String[] header = inFile.getHeader(true);
                 csvBean csvB;
@@ -102,10 +110,10 @@ public class CuelibStringReplacer {
 
                     //出力先ファイルの作成
                     SimpleDateFormat DF = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-                    String outfile = target.getAbsolutePath() + "_REP_" + DF.format(new Date() + ".cue");
+                    String outfile = target.getAbsolutePath() + "_REP_" + DF.format(new Date()) + ".cue";
                     File dest = new File(outfile);
 
-                    Replacer rpr = new Replacer(target, dest, args[2], confmap);
+                    Replacer rpr = new Replacer(target, dest, charset, confmap);
 
                     list_Replacer.add(rpr);
                 }
