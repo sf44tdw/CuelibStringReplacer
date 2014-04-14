@@ -8,15 +8,22 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
-import java.util.concurrent.ConcurrentHashMap;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jwbroek.util.StringReplacer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import util.Util;
 
 /**
@@ -25,75 +32,151 @@ import util.Util;
  */
 public class Replacer implements Runnable {
 
-    private final File target;
-    private final File dest;
-    private BufferedReader r;
-    private BufferedWriter w;
-    private final String charset;
-    private final StringReplacer rP;
     private static final Logger log = Util.getCallerLogger();
 
-    public Replacer(File target, File dest, String charset, ConcurrentHashMap<String, String> confmap) {
-        this.target = target;
-        this.dest = dest;
+    private String charset;
+
+    private File File_input;
+    private BufferedReader inFilereader = null;
+
+    private File File_output;
+    private BufferedWriter outFilewriter = null;
+
+    public Replacer(File File_input, String charset) {
         this.charset = charset;
-        this.rP = new StringReplacer(confmap);
+        this.File_input = File_input;
+    }
+
+    private synchronized boolean open_Istream() {
+        try {
+            //読み込み用ストリームの作成
+            log.log(Level.FINEST, Thread.currentThread().getName() + " 読み込み用ストリームを作成します。 読み込み用ファイル名 = {0}", File_input.getAbsolutePath());
+            this.inFilereader = new BufferedReader(new InputStreamReader(new FileInputStream(File_input), charset));
+            log.log(Level.FINEST, "{0} 読み込み用ストリームを作成。", Thread.currentThread().getName());
+            return true;
+
+        } catch (UnsupportedEncodingException ex) {
+            log.log(Level.SEVERE, Thread.currentThread().getName() + " 文字コードの設定に問題があります。文字コード=" + charset, ex);
+            return false;
+        } catch (FileNotFoundException ex) {
+            log.log(Level.SEVERE, Thread.currentThread().getName() + " ファイルが見つかりません。", ex);
+            return false;
+        }
+    }
+
+    private synchronized boolean open_Ostream() {
+        try {
+            //出力先ファイルの作成
+            SimpleDateFormat DF = new SimpleDateFormat("yyyyMMddHHmmssSSS");
+            String outfile = File_input.getAbsolutePath() + "_REP_" + DF.format(new Date()) + ".cue";
+            this.File_output = new File(outfile);
+            log.log(Level.FINEST, Thread.currentThread().getName() + " 書き込み用ストリームを作成します。 書き込み用ファイル名 = {0}", File_output.getAbsolutePath());
+            this.outFilewriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(File_output), charset));
+            log.log(Level.FINEST, "{0} 書き込み用ストリームを作成。", Thread.currentThread().getName());
+            return true;
+
+        } catch (UnsupportedEncodingException ex) {
+            log.log(Level.SEVERE, Thread.currentThread().getName() + " 文字コードの設定に問題があります。文字コード=" + charset, ex);
+            return false;
+        } catch (FileNotFoundException ex) {
+            log.log(Level.SEVERE, Thread.currentThread().getName() + " ファイルが見つかりません。", ex);
+            return false;
+        }
+    }
+
+    private synchronized void close_Istreams() {
+        try {
+            this.inFilereader.close();
+            log.log(Level.FINEST, "{0} 読み込み用ストリームを閉鎖。", Thread.currentThread().getName());
+        } catch (IOException ex) {
+            log.log(Level.SEVERE, Thread.currentThread().getName() + " 読み込み用ストリームの閉鎖に失敗しました。", ex);
+        }
+    }
+
+    private synchronized void close_Ostreams() {
+        try {
+            this.outFilewriter.close();
+            log.log(Level.FINEST, "{0} 書き込み用ストリームを閉鎖。", Thread.currentThread().getName());
+        } catch (IOException ex) {
+            log.log(Level.SEVERE, Thread.currentThread().getName() + " 書き込み用ストリームの閉鎖に失敗しました。", ex);
+        }
+    }
+
+    private synchronized List<String> read_Inputfile() {
+        if (this.open_Istream()) {
+            try {
+                List<String> inputBuffer = Collections.synchronizedList(new ArrayList<String>());
+                String str;
+                while ((str = this.inFilereader.readLine()) != null) {
+                    inputBuffer.add(str);
+                    log.log(Level.FINEST, "{0} バッファに1行追加しました。 行 = {1}", new Object[]{Thread.currentThread().getName(), str});
+                }
+                log.log(Level.FINEST, "{0} バッファへの読み込みを完了しました。行数 = {1}", new Object[]{Thread.currentThread().getName(), inputBuffer.size()});
+                this.close_Istreams();
+                return inputBuffer;
+            } catch (IOException ex) {
+                log.log(Level.SEVERE, Thread.currentThread().getName() + " ファイルからの読み込みに失敗しました。ファイル = " + this.File_input.getAbsolutePath(), ex);
+                this.close_Istreams();
+                return null;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    private synchronized List<String> replace_Backend() {
+        List<String> outputBuffer = Collections.synchronizedList(new ArrayList<String>());
+        boolean flag_Changed = false;
+        for (String sb : read_Inputfile()) {
+            String sa;
+            sa = sb.replaceAll("<", "(");
+            sa = sa.replaceAll(">", ")");
+            sa = sa.replaceAll("～", "-");
+            sa = sa.replaceAll("〜", "-");
+
+            outputBuffer.add(sa);
+            if (sa.equals(sb)) {
+                log.log(Level.INFO, "{0} 置き換えられた文字列が存在しない行です。置き換え前 = {1} 置き換え後={2}", new Object[]{Thread.currentThread().getName(), sb, sa});
+            } else {
+                flag_Changed = true;
+                log.log(Level.INFO, "{0} 置き換えられた文字列が存在する行です。置き換え前 = {1} 置き換え後={2}", new Object[]{Thread.currentThread().getName(), sb, sa});
+            }
+        }
+        if (flag_Changed == true) {
+            log.log(Level.INFO, "{0} 置き換え有り。", Thread.currentThread().getName());
+            return outputBuffer;
+        } else {
+            log.log(Level.INFO, "{0} 置き換えなし。", Thread.currentThread().getName());
+            return null;
+        }
     }
 
     private synchronized boolean replace() {
-
-        try {
-            //ファイルの読み込み準備         
-            this.r = new BufferedReader(new InputStreamReader(new FileInputStream(target), charset));
-            //ファイルの書き込み準備
-            this.w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(dest), charset));
-
-
-            String in_line;
-            String out_line;
-            //一行ずつ読み込み→変換→書き込み。
-            //readLine()がnullを返却した時点でEOFと判断し、ループを抜ける。
-            while ((in_line = r.readLine()) != null) {
-                out_line = rP.replace(in_line);
-
-                w.write(out_line);
-                w.newLine();
-
-                //ログに記録
-                log.log(Level.INFO, "{0} 出力ファイルへ書き込み {1} ->-> {2}", new Object[]{Thread.currentThread().getName(), in_line, out_line});
-                
-            }
-            return true;
-        } catch (UnsupportedEncodingException ex0) {
-            log.log(Level.SEVERE,Thread.currentThread().getName()+" 文字コードの指定に問題があります。", ex0);
-            return false;
-        } catch (IOException ex1) {
-            log.log(Level.SEVERE,Thread.currentThread().getName()+" 入出力エラーです。", ex1);
-            return false;
-        } catch (Exception ex2) {
-            log.log(Level.SEVERE,Thread.currentThread().getName()+" その他のエラーです。", ex2);
-            return false;
-        } finally {
-            //例外発生時にも確実にリソースが開放されるように
-            //close()の呼び出しはfinallyブロックで行う。
-            try {
-                if (this.r != null) {
-                    this.r.close();
+        List<String> L = this.replace_Backend();
+        if (L != null) {
+            if (this.open_Ostream()) {
+                try {
+                    for (Iterator<String> i = L.iterator(); i.hasNext();) {
+                        this.outFilewriter.write(i.next());
+                        this.outFilewriter.newLine();
+                    }
+                    this.outFilewriter.flush();
+                } catch (IOException ex) {
+                    log.log(Level.SEVERE, Thread.currentThread().getName() + " 書き込みに失敗しました。", ex);
+                    return false;
                 }
-                if (this.w != null) {
-                    this.w.close();
-                }
-            } catch (Exception ex3) {
-                log.log(Level.SEVERE,Thread.currentThread().getName()+" その他のエラーです。", ex3);
+            } else {
+                log.log(Level.WARNING, "{0} 出力の準備が出来ませんでした。", Thread.currentThread().getName());
+                this.close_Ostreams();
                 return false;
             }
         }
+        return true;
     }
 
     @Override
     public void run() {
-        log.log(Level.INFO, "{0} 入力ファイル {1}", new Object[]{Thread.currentThread().getName(), this.target.toString()});
-        log.log(Level.INFO, "{0} 出力ファイル  {1}", new Object[]{Thread.currentThread().getName(), this.dest.toString()});
+        log.log(Level.INFO, "{0} 入力ファイル {1}", new Object[]{Thread.currentThread().getName(), this.File_input.toString()});
         log.log(Level.INFO, "{0} 文字コード指定  {1}", new Object[]{Thread.currentThread().getName(), this.charset});
         log.log(Level.INFO, "{0} 置き換え開始", Thread.currentThread().getName());
         if (this.replace()) {
@@ -101,5 +184,10 @@ public class Replacer implements Runnable {
         } else {
             log.log(Level.WARNING, "{0} 置き換え失敗", Thread.currentThread().getName());
         }
+    }
+
+    @Override
+    public final void finalize() {
+        // 何もしない(OBJ11-J. コンストラクタが例外をスローする場合には細心の注意を払う)
     }
 }
