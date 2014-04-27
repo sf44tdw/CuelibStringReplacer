@@ -149,10 +149,11 @@ public class Replacer implements Runnable {
     }
 
     private synchronized boolean replace() {
-        BufferedWriter ou_w = this.open_Ostream();
+        
 
         List<String> L = this.replace_Backend();
         if (L != null) {
+            BufferedWriter ou_w = this.open_Ostream();
             if (ou_w != null) {
                 try {
                     for (Iterator<String> i = L.iterator(); i.hasNext();) {
