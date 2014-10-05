@@ -1,13 +1,24 @@
 *.class
+
 # Package Files #
 *.jar
 *.war
 *.ear
+
 # Log Files #
 *.log
+
 #build
 build/
 dist/
 build.xml
 manifest.mf
+
+#project
 nbproject/
+
+#eclipse
+.settings/
+bin/
+.classpath
+.project
