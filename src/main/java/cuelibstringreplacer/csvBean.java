@@ -4,8 +4,7 @@
  */
 package cuelibstringreplacer;
 
-import java.beans.*;
-import java.io.Serializable;
+import java.util.Objects;
 import org.supercsv.cellprocessor.constraint.Unique;
 import org.supercsv.cellprocessor.ift.CellProcessor;
 
@@ -13,14 +12,11 @@ import org.supercsv.cellprocessor.ift.CellProcessor;
  *
  * @author uname
  */
-public class csvBean implements Serializable {
+public class csvBean implements csvBean_ReadOnly {
 
-    public static final String PROP_SAMPLE_PROPERTY = "sampleProperty";
-    private String sampleProperty;
-    private PropertyChangeSupport propertySupport;
-
+    public static final String[] HEADER = {"from","to"} ;
+    
     public csvBean() {
-        propertySupport = new PropertyChangeSupport(this);
     }
     /**
      * 各要素フォーマット定義
@@ -32,14 +28,6 @@ public class csvBean implements Serializable {
     /* 各要素の Getter/Setter 定義 */
     private String from, to;
 
-    public String getFrom() {
-        return from;
-    }
-
-    public String getTo() {
-        return to;
-    }
-
     public void setFrom(String from) {
         this.from = from;
     }
@@ -47,4 +35,50 @@ public class csvBean implements Serializable {
     public void setTo(String to) {
         this.to = to;
     }
+
+
+    @Override
+    public String getFrom() {
+        return from;
+    }
+
+    @Override
+    public String getTo() {
+        return to;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 31 * hash + Objects.hashCode(this.from);
+        hash = 31 * hash + Objects.hashCode(this.to);
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final csvBean other = (csvBean) obj;
+        if (!Objects.equals(this.from, other.from)) {
+            return false;
+        }
+        if (!Objects.equals(this.to, other.to)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public String toString() {
+        return "csvBean{" + "from=" + from + ", to=" + to + '}';
+    }
+
 }

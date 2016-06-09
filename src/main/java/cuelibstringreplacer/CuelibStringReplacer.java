@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 import org.supercsv.io.CsvBeanReader;
@@ -45,7 +44,6 @@ public class CuelibStringReplacer {
      * 1:捜索対象のディレクトリ<br>
      * 2:サブディレクトリ探査の有無。0なら探査しない。1なら探査する。設定に失敗した場合は0がセットされたものとみなす。<br>
      * 3:読み込みの際に前提とする文字コード<br>
-     * 4:置き換えパターン設定ファイルの場所。<br>
      */
     public static void main(String[] args) {
         final org.slf4j.Logger log = LoggerFactory.getLogger("CuelibStringReplacer");
@@ -105,15 +103,15 @@ public class CuelibStringReplacer {
 
                 log.info("探査完了。件数= " + res.size());
 
-                log.info("置き換え設定ファイル " + args[3]);
-                File config = new File(args[3]);
-                rc = new BufferedReader(new InputStreamReader(new FileInputStream(config), charset));
+                File ruleFile = new File("rule/rule.csv");
+                log.info("置き換え設定ファイル " + ruleFile.getAbsolutePath());
+                rc = new BufferedReader(new InputStreamReader(new FileInputStream(ruleFile), Charset.forName("UTF-8")));
                 inFile = new CsvBeanReader(rc, CsvPreference.EXCEL_PREFERENCE);
-                final String[] header = inFile.getHeader(true);
                 csvBean csvB = null;
-                ConcurrentHashMap<String, String> confmap = new ConcurrentHashMap<>();
-                while ((csvB = inFile.read(csvBean.class, header, csvBean.processors)) != null) {
-                    confmap.put(csvB.getFrom(), csvB.getTo());
+                List<csvBean> confList = new ArrayList<>();
+                while ((csvB = inFile.read(csvBean.class, csvBean.HEADER, csvBean.processors)) != null) {
+                    log.info(csvB.toString());
+                    confList.add(csvB);
                 }
 
                 List<Replacer> list_Replacer = Collections.synchronizedList(new ArrayList<Replacer>());
@@ -127,7 +125,7 @@ public class CuelibStringReplacer {
                     String outfile = target.getAbsolutePath() + "_REP_" + new Date().getTime() + ".cue";
                     File dest = new File(outfile);
 
-                    Replacer rpr = new Replacer(target, dest, charset, confmap);
+                    Replacer rpr = new Replacer(target, dest, charset, confList);
 
                     list_Replacer.add(rpr);
                 }
