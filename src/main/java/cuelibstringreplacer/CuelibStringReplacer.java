@@ -5,12 +5,11 @@
 package cuelibstringreplacer;
 
 import cuelibstringreplacer.Replacer.Replacer;
+import cuelibtools.attributeChecker.ProhibitedCharacterChecker;
 import cuelibtools.CueSheetListMaker.CueSheetListMaker;
-import cuelibtools.FileSeeker.CueSheetFileSeeker;
 import cuelibtools.attributeChecker.AttributeChecker;
 import cuelibtools.attributeChecker.MediaFileNameChecker;
 import cuelibtools.attributeChecker.SynonymTrackTitleChacker;
-import cuelibtools.attributeChecker.TitleAndPerformerChecker;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,7 +17,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -97,7 +95,7 @@ public class CuelibStringReplacer {
                 List<AttributeChecker> checker = new ArrayList<>();
                 checker.add(new MediaFileNameChecker());
                 checker.add(new SynonymTrackTitleChacker());
-                checker.add(new TitleAndPerformerChecker());
+                checker.add(new ProhibitedCharacterChecker());
 
                 CueSheetListMaker fileListMaker = new CueSheetListMaker(Source,charset,checker,recursive);
 
