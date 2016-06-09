@@ -107,7 +107,6 @@ public class CuelibStringReplacer {
 
                 log.info("置き換え設定ファイル " + args[3]);
                 File config = new File(args[3]);
-
                 rc = new BufferedReader(new InputStreamReader(new FileInputStream(config), charset));
                 inFile = new CsvBeanReader(rc, CsvPreference.EXCEL_PREFERENCE);
                 final String[] header = inFile.getHeader(true);
