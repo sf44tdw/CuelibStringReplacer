@@ -102,7 +102,7 @@ public class CuelibStringReplacer {
                 CueSheetListMaker fileListMaker = new CueSheetListMaker(Source,charset,checker,recursive);
 
                 log.info("探査開始。");
-                List<File> res = fileListMaker.MakeCueSheetList();
+                List<File> res = fileListMaker.MakeCueFileList();
 
                 log.info("探査完了。件数= " + res.size());
 
