@@ -41,7 +41,8 @@ public class CuelibStringReplacer {
     }
 
     /**
-     * @param args 1:捜索対象のディレクトリ<br>
+     * @param args<br>
+     * 1:捜索対象のディレクトリ<br>
      * 2:サブディレクトリ探査の有無。0なら探査しない。1なら探査する。設定に失敗した場合は0がセットされたものとみなす。<br>
      * 3:読み込みの際に前提とする文字コード<br>
      * 4:置き換えパターン設定ファイルの場所。<br>
@@ -87,8 +88,8 @@ public class CuelibStringReplacer {
                 try {
                     charset = Charset.forName(args[2]);
                 } catch (IllegalArgumentException ex) {
-                    log.warn("文字コードが設定できなかったため、Shift JIS前提で読み込みます。");
-                    charset = Charset.forName("SJIS");
+                    log.warn("文字コードが設定できなかったため、システムの既定値で読み込みます。");
+                    charset = Charset.defaultCharset();
                 }
                 log.info("読み込み文字コード={}", charset);
 
@@ -97,7 +98,7 @@ public class CuelibStringReplacer {
                 checker.add(new SynonymTrackTitleChacker());
                 checker.add(new ProhibitedCharacterChecker());
 
-                CueSheetListMaker fileListMaker = new CueSheetListMaker(Source,charset,checker,recursive);
+                CueSheetListMaker fileListMaker = new CueSheetListMaker(Source, charset, checker, recursive);
 
                 log.info("探査開始。");
                 List<File> res = fileListMaker.MakeCueFileList();
